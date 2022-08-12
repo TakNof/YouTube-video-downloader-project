@@ -207,6 +207,9 @@ def main():
     screen_width = 400
     screen_height = 350
 
+    #Letter type.
+    letter_type1 = 'Sans-serif 10'
+    
     #The size of the text box in scale. (It is not stablished in px units)
     download_box_width = 32
 
@@ -256,11 +259,11 @@ def main():
     download_box.place(x=center_element_x(screen_width, download_box_width, "un"), y=140)
 
     #An options button is added in order to let the user set up the app at their own taste.
-    options_button = tk.Button(root, font='Sans-serif 10', text="Options", command=lambda: open_options(download_path))
+    options_button = tk.Button(root, font=letter_type1, text="Options", command=lambda: open_options(download_path))
     options_button.place(x=400 - center_element_x(screen_width, download_box_width, "un"), y=140)
 
     #Sometimes, the user may paste something wrong or something they didn't meant to, so we stablish a clear button to allow the user to clear the box at any time.
-    clear_button = tk.Button(root, font='Sans-serif 10', text="Clear", command=lambda: clear(download_box), width=6)
+    clear_button = tk.Button(root, font=letter_type1, text="Clear", command=lambda: clear(download_box), width=6)
     clear_button.place(x=400 - center_element_x(screen_width, download_box_width, "un"), y=168)
 
     #Here we set the download button. It's big and it's clear what the button does.
@@ -277,7 +280,7 @@ def main():
     #We put some check buttons in order to let the user take quick actions.
     #This check button allows the app to know whether the user wants to open the file after the download has finished or not.
     check_open_file = tk.Checkbutton(root,
-                                    font='Sans-serif 10',
+                                    font=letter_type1,
                                     text="Open the file when the download ends",
                                     variable= open_file_confirmation,
                                     onvalue= True,
@@ -286,7 +289,7 @@ def main():
 
     #This check button allows the app to know whether the user wants to download the audio only or not.
     download_audio_only = tk.Checkbutton(root,
-                                    font='Sans-serif 10',
+                                    font=letter_type1,
                                     text="Download audio only",
                                     variable= download_audio_only_confirmation,
                                     onvalue= True,

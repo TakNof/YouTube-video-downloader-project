@@ -1,1 +1,1 @@
-download_path = E:/Mis Documentos/PFiles/Efectos de sonido
+download_path = C:/Users/user/Downloads
