@@ -41,16 +41,56 @@ def open_options(download_path: str):
     options_window.geometry(str(screen_width) + "x" + str(screen_height))
     
     #A label with the download path will be displayed on the new window, to let the user know where the download will be saved.
-    download_path_message = tk.Label(options_window, text=f"The current download folder is:\n{download_path}", font=("consolas", 16), justify="left")
+    download_path_message = tk.Label(options_window, text=f"The current download folder is:\n{download_path}", font=("consolas", 14), justify="left")
     download_path_message.pack(padx=0)
     
     #Here we set a button to let the user change the download path as they wish.
     change_download_path_button = tk.Button(options_window,
                                             text="Change the download path",
                                             command = lambda: change_download_path(download_path_message),
-                                            font=("Consolas", 18))
+                                            font=("Consolas", 12))
     change_download_path_button.pack(padx=0)
+    
+    #Here we set a button to let the user open the folder were the download path was set.
+    open_selected_folder_button = tk.Button(options_window,
+                                   text= "Open selected folder",
+                                   command= lambda: open_selected_folder(),
+                                   font=("Consolas", 12))
+    open_selected_folder_button.pack(padx=0)
+    
+    #Here we set a button to let the user open the folder were the download path was set.
+    reset_download_path_button = tk.Button(options_window,
+                                   text= "Reset download path",
+                                   command= lambda: set_download_path_to_default(download_path_message),
+                                   font=("Consolas", 12))
+    reset_download_path_button.pack(padx=0)
+    
+def open_selected_folder():
+    """
+    This method allows to open selected folder where the files will be downloaded.
+    """
+    os.startfile(set_download_path())
+    
+def set_download_path_to_default(label: tk.Label):
+    """
+    
+    Args:
+        options_window (tk.Toplevel): _description_
+        label (tk.Label): _description_
+    """
+    global download_path
+    global default_download_path
+    download_path = default_download_path
+    
+    global yd
+    yd.set_download_path(download_path)
+    
+    refresh_label(label, f"The current download folder is:\n{download_path}")
 
+    config_file_w = open(config_file_name, 'w')
+    config_file_w.write("download_path = " + default_download_path)
+    config_file_w.close()
+      
 def set_download_path():
     """
     This method sets the path where the files will be downloaded.
@@ -73,13 +113,11 @@ def set_download_path():
         else:
             return read_config_file.split("= ")[-1]
     except IOError:
+        global default_download_path
         config_file_w = open(config_file_name, 'w')
-             
-        home = os.path.expanduser("~")
-        download_path = str(os.path.join(home, "Downloads"))
-        config_file_w.write("download_path = " + download_path)
+        config_file_w.write("download_path = " + default_download_path)
         
-        return download_path      
+        return default_download_path   
 
 def change_download_path(label: tk.Label):
     """
@@ -104,7 +142,7 @@ def change_download_path(label: tk.Label):
     global yd
     yd.set_download_path(download_path)
     #Finally, we refresh the label through the created method.
-    refresh_label(label, download_path)
+    refresh_label(label, f"The current download folder is:\n{download_path}")
     
 def refresh_label(label: tk.Label, new_str: str):
     """
@@ -315,6 +353,10 @@ def main():
     global config_file_name
     config_file_name = "config.txt"
     
+    #A variable indicating the default download path of the windows OS users.
+    global default_download_path
+    default_download_path = str(os.path.join(os.path.expanduser("~"), "Downloads"))
+    
     #Here we create a YouTube Downloader class object
     global yd
     yd = youtube_downloader.youtube_downloader()
@@ -325,9 +367,9 @@ def main():
     #Then we stablish it to the YouTube object.
     yd.set_download_path(download_path)
         
-    #Figure out how to make the image icon work when exporting the program to .exe
-    #icon = PhotoImage(file="Icono.png")
-    #root.iconphoto(True, icon)
+    #Here the image of the application is loaded.
+    icon = PhotoImage(file="Icono.png")
+    root.iconphoto(True, icon)
     
     #Here we set the main characteristics of the main window of the app.
     
