@@ -4,10 +4,8 @@ from pytube import Playlist
 
 class youtube_downloader:
     """
-    The youtube_downloader class allows the user to download a video from a YouTube channel
-    using the pytube API
-    
-    when creating an object of this class, you will be able to set the basic properties through
+    The youtube_downloader class allows the user to download a video or a playlist from a YouTube channel using the pytube API.\n
+    When creating an object of this class, you will be able to set the basic properties through\n
     the video link attribute.
     """
     url: str
@@ -66,6 +64,7 @@ class youtube_downloader:
     def set_yt_ob(self, is_playlist: bool = False, url: str = None):
         """
         This method creates the YouTube object.
+        
         Args:
             is_playlist (bool, optional): Boolean variable to know whether the url given was a playlist or not. Defaults to False.
             url (str, optional): A string with the url of the video. Defaults to None.
@@ -97,6 +96,7 @@ class youtube_downloader:
     def set_download_path(self, path: str):
         """
         This method sets the download path.
+        
         Args:
             path (str): An string with the download path (Absolute path).
         """
@@ -105,6 +105,7 @@ class youtube_downloader:
     def get_download_path(self):
         """
         This method returns the donwload path.
+        
         Returns:
             str: The download path. 
         """
@@ -113,6 +114,7 @@ class youtube_downloader:
     def download_video(self, confirmation_open_file: bool):
         """
         This method downloads the saved url video.
+                
         Args:
             confirmation_open_file (bool): a bool indicating wheter to open the file when the download is completed or not.
         """
@@ -130,6 +132,7 @@ class youtube_downloader:
     def download_audio(self, confirmation_open_file: bool):
         """
         This method download the audio of the saved url video.
+        
         Args:
             confirmation_open_file (bool): a bool indicating wether to open the file when the donwload is completed or not.
         """
@@ -158,6 +161,7 @@ class youtube_downloader:
     def get_yt_ob(self):
         """
         This method returns the YouTube object.
+        
         Returns:
             YouTube: A YouTube object representing the video object.
         """
@@ -166,12 +170,24 @@ class youtube_downloader:
     def get_pl_ob(self):
         """
         This method returns the Playlist object.
+        
         Returns:
             Playlist: A Playlist object representing the youtube playlist object.
         """
         return self.playlist
     
     def get_size_of_file(self,download_audio_only_confirmation: bool, is_playlist: bool = False, url: str = None):
+        """
+        This method returns the file size of the file to be downloaded.
+        
+        Args:
+            download_audio_only_confirmation (bool): A boolean indicating whether to download the audio only or not.
+            is_playlist (bool, optional): Boolean variable to know whether the url given was a playlist or not. Defaults to False.
+            url (str, optional): A string with the url of the video. Defaults to None.
+
+        Returns:
+            File size (int): The file size of the video to be downloaded.
+        """
         if is_playlist:
             used_url = url
         else:

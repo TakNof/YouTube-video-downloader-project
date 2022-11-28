@@ -1,8 +1,7 @@
-import os
 from tkinter import END, HORIZONTAL, BooleanVar, PhotoImage, StringVar, filedialog, messagebox
 from tkinter.ttk import Progressbar
 
-import threading 
+import os
 import youtube_downloader
 import tkinter as tk
 import cProfile
@@ -50,22 +49,28 @@ def open_options(download_path: str):
     #Here we set a button to let the user change the download path as they wish.
     change_download_path_button = tk.Button(options_window,
                                             text="Change the download path",
+                                            cursor="hand2",
+                                            activebackground="#badee2",
                                             command = lambda: change_download_path(download_path_message),
                                             font=("Consolas", 12))
     change_download_path_button.pack(padx=0)
     
     #Here we set a button to let the user open the folder were the download path was set.
     open_selected_folder_button = tk.Button(options_window,
-                                   text= "Open selected folder",
-                                   command= lambda: open_selected_folder(),
-                                   font=("Consolas", 12))
+                                    text= "Open selected folder",
+                                    cursor="hand2",
+                                    activebackground="#badee2",
+                                    command= lambda: open_selected_folder(),
+                                    font=("Consolas", 12))
     open_selected_folder_button.pack(padx=0)
     
     #Here we set a button to let the user open the folder were the download path was set.
     reset_download_path_button = tk.Button(options_window,
-                                   text= "Reset download path",
-                                   command= lambda: set_download_path_to_default(download_path_message),
-                                   font=("Consolas", 12))
+                                    text= "Reset download path",
+                                    cursor="hand2",
+                                    activebackground="#badee2",
+                                    command= lambda: set_download_path_to_default(download_path_message),
+                                    font=("Consolas", 12))
     reset_download_path_button.pack(padx=0)
     
 def open_selected_folder():
@@ -81,12 +86,16 @@ def set_download_path_to_default(label: tk.Label):
         options_window (tk.Toplevel): _description_
         label (tk.Label): _description_
     """
+    #Here we set the download path to its default value.
     download_path = default_download_path
     
+    #We give it as well to the class.
     yd.set_download_path(download_path)
     
+    #Refresh the label through the method.
     refresh_label(label, f"The current download folder is:\n{download_path}")
 
+    #And finally we rewrite its value in the config.txt file.
     config_file_w = open(config_file_name, 'w')
     config_file_w.write("download_path = " + default_download_path)
     config_file_w.close()
@@ -285,9 +294,11 @@ def download_process(link: str, open_file_confirmation: bool, download_audio_onl
         for video in yd.get_pl_ob().video_urls:
             total_size_of_download += int(yd.get_size_of_file(download_audio_only_confirmation, True, video))
 
+        #This variable collects the current state of the total donwload.
         global current_total_download
         current_total_download = 0
-    
+
+        #This variable collects the specified size of the current iterated video.
         global specific_file_size_of_download
         specific_file_size_of_download = 0
                
@@ -301,6 +312,7 @@ def download_process(link: str, open_file_confirmation: bool, download_audio_onl
             yd.set_yt_ob(True, video)
             yd.set_download_file_name()
             
+            #We stabilish its value through the method.
             specific_file_size_of_download = yd.get_size_of_file(download_audio_only_confirmation, True, video)                               
            
             #We use the methods to register the progress and the completion of the download.
@@ -313,10 +325,14 @@ def download_process(link: str, open_file_confirmation: bool, download_audio_onl
             else: 
                 yd.download_video(open_file_confirmation)
             
-            specific_file_size_of_download = 0
-                    
-        time.sleep(2)    
-        current_task = 0       
+            #We stablish this variable at the end of the loop because we know for sure that
+            #the current state of the total donwload corresponds to the sum of all the specific ones
+            #at the end of each iteration.
+            current_total_download += specific_file_size_of_download
+            specific_file_size_of_download = 0  
+        #Here we reset this variables for future uses.
+        current_task = 0
+        current_total_download = 0       
         
     else:
         #We use the methods to register the progress and the completion of the download.
@@ -357,6 +373,7 @@ def show_main_download_progress(stream, chunk: bytes, bytes_remaining: int):
     global percentage_download
     percentage_download.set(str(download_state) + "%")
     
+    #This variable collects the progress of the download in its corresponding unit of storage.
     global bytes_downloaded
     bytes_downloaded.set(
         "".join([str(item) for item in convert_bytes(round(specific_file_size_of_download - int(bytes_remaining), 2))]) 
@@ -365,11 +382,20 @@ def show_main_download_progress(stream, chunk: bytes, bytes_remaining: int):
     
     #A conditional to display the progress bar of the individual tasks.
     if is_playlist:
+        #This variable collects the progress of the download in its corresponding unit of storage.
+        global total_bytes_downloaded
+        total_bytes_downloaded.set(
+            "".join([str(item) for item in convert_bytes(round(current_total_download + specific_file_size_of_download - int(bytes_remaining), 2))]) 
+            + "/" + 
+            "".join([str(item) for item in convert_bytes(round(total_size_of_download, 2))]))
+    
+        
         #A conditional to display the label of the specific task progress.
         if bytes_remaining == 0:
             global current_task
             current_task += 1
-            
+        
+        #Due it is a playlist, we need to display the progress for each item and in general.
         show_task_progress()
    
     #Lastly, we update the labels every time a cycle of the callback is executed.
@@ -399,6 +425,9 @@ def show_main_download_completed(stream, path: str):
     download_window.bell()
 
 def show_task_progress():
+    """
+    This method shows the progress of the tasks downloading.
+    """
     #Now this task progress is determined by the amount of tasks completed and the total number of tasks to finish.
     global current_task
     global total_tasks
@@ -412,26 +441,36 @@ def show_task_progress():
     global tasks_completed
     tasks_completed.set(str(current_task) + "/" + str(total_tasks) + " videos downloaded.")    
 
-def convert_bytes(bytes_given: int):
-    if bytes_given/1024 <= 0.5:
-        return [bytes_given/1024, "KB"]
-    elif bytes_given/1048576 <= 0.5:
-        return [bytes_given/1048576, "MB"]
-    elif bytes_given/10737418274 <= 0.5:
-        return [bytes_given/10737418274, "GB"]
-    elif bytes_given/1099511627776 <= 0.5:
-        return [bytes_given/1099511627776, "TB"]     
+def convert_bytes(bytes_given: int) -> list:
+    """
+    This method converts the bytes given to a more human-readable representation.
+    Args:
+        bytes_given (int): The amount of bytes to convert.
+
+    Returns:
+        list: [units converted, kind of unit]
+    """
+    if bytes_given/1024 <= 100:
+        return [round(bytes_given/1024, 2), "KB"]
+    elif bytes_given/1048576 <= 1000:
+        return [round(bytes_given/1048576, 2), "MB"]
+    elif bytes_given/10737418274 <= 10:
+        return [round(bytes_given/1073741824, 2), "GB"]
+    elif bytes_given/1099511627776 <= 10:
+        return [round(bytes_given/1099511627776, 2), "TB"]     
 
 def main():
     """
     Main method for excecution of the code.
     """
+    #Indicates the current version of the application
+    app_version_text = "V3.1"
     
     #Creating the main window of the app.
     root = tk.Tk()
     
     #title of the app
-    title = "YouTube video downloader \nV3.0.2"
+    title = "YouTube video downloader \n" + app_version_text
     root.title(title)
 
     #Setting of the screen width and height of the windows of the app.
@@ -440,8 +479,9 @@ def main():
     screen_width = 400
     screen_height = 400
 
-    #Letter type.
+    #Letter types.
     letter_type1 = 'Sans-serif 10'
+    letter_type2 = 'Sans-serif 8'
     
     #The size of the text box in scale. (It is not stablished in px units)
     download_box_width = 32
@@ -496,6 +536,8 @@ def main():
     root.config(bg="White", border= "1px solid")
     root.resizable(False, False)
 
+    root.eval("tk::PlaceWindow . center")
+    
     #The title of the app is stablished and setted to the canvas.
     title_text = tk.Label(root, text=title, font=("Sans-serif", 20))
     title_text.pack() 
@@ -509,19 +551,31 @@ def main():
     download_box.place(x=center_element_x(screen_width, download_box_width, "un"), y=140)
 
     #An options button is added in order to let the user set up the app at their own taste.
-    options_button = tk.Button(root, font=letter_type1, text="Options", command=lambda: open_options(download_path))
+    options_button = tk.Button(root,
+                               font=letter_type1,
+                               text="Options",
+                               cursor="hand2",
+                               activebackground="#badee2",
+                               command=lambda: open_options(download_path))
     options_button.place(x=400 - center_element_x(screen_width, download_box_width, "un"), y=140)
 
     #Sometimes, the user may paste something wrong or something they didn't meant to, so we stablish a clear button to allow the user to clear the box at any time.
-    clear_button = tk.Button(root, font=letter_type1, text="Clear", command=lambda: clear(download_box), width=6)
+    clear_button = tk.Button(root,
+                             font=letter_type1,
+                             text="Clear",
+                             cursor="hand2",
+                             command=lambda: clear(download_box), width=6)
     clear_button.place(x=400 - center_element_x(screen_width, download_box_width, "un"), y=168)
 
     #Here we set the download button. It's big and it's clear what the button does.
-    download_video_button = tk.Button(root,
-                                      font='Sans-serif 24',
-                                      text="Download",
-                                      command= lambda: download(download_box.get(), open_file_confirmation, download_audio_only_confirmation))
-    download_video_button.pack(pady = 30)
+    download_button = tk.Button(root,
+                                    font='Sans-serif 24',
+                                    text="Download",
+                                    cursor="hand2",
+                                    activebackground="#badee2",
+                                    command= lambda: download(download_box.get(), open_file_confirmation, download_audio_only_confirmation)
+                                    )
+    download_button.pack(pady = 30)
     
     #We noticed that one of the most common actions the users do is to press the return button in order to let the download begin.
     #Here we stablished the key bind to facilitate the download to the users.
@@ -532,6 +586,8 @@ def main():
     check_open_file = tk.Checkbutton(root,
                                     font=letter_type1,
                                     text="Open the file when the download ends",
+                                    cursor="hand2",
+                                    activebackground="#badee2",
                                     variable= open_file_confirmation,
                                     onvalue= True,
                                     offvalue= False)
@@ -541,17 +597,19 @@ def main():
     download_audio_only = tk.Checkbutton(root,
                                     font=letter_type1,
                                     text="Download audio only",
+                                    cursor="hand2",
+                                    activebackground="#badee2",
                                     variable= download_audio_only_confirmation,
                                     onvalue= True,
                                     offvalue= False)
     download_audio_only.pack()
     
     #This is a label that let's the user know who the author of the application is.
-    autor = tk.Label(root, font='Sans-serif 8', text="Author: Alejandro Fonseca Téllez\nAll Rights Reserved")
+    autor = tk.Label(root, font=letter_type2, text="Author: Alejandro Fonseca Téllez\nAll Rights Reserved")
     autor.pack()
     
     #This is a label that let's the user know what is the application version they are using.
-    app_version = tk.Label(root, font='Sans-serif 8', text="V3.0.2")
+    app_version = tk.Label(root, font=letter_type2, text= app_version_text)
     app_version.pack()
 
     #Main loop for keeping the app running.
@@ -559,5 +617,6 @@ def main():
 
 #Protocol setup if
 if __name__ == "__main__":
-    #main()
-    cProfile.run('main()', sort='tottime')
+    main()
+    #cProfile.run('main()', sort='tottime')
+    #print(time.perf_counter())

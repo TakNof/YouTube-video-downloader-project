@@ -5,6 +5,7 @@ import tkinter as tk
 import os
 import time
 import threading
+from multiprocessing import Process
 import cProfile
 
 def show_download_progress(stream, chunk: bytes, bytes_remaining: int):
@@ -34,7 +35,7 @@ def download():
     download_bar = Progressbar(download_window, orient= HORIZONTAL, length= 300)
     download_bar.pack()
     
-    download_window.after(300, lambda: call_download_process_method("https://www.youtube.com/playlist?list=PLzxRtqFRLWZ892ytyZ2E189Oeaan2m9c4"))
+    download_window.after(300, lambda: download_process("https://www.youtube.com/playlist?list=PLzxRtqFRLWZ892ytyZ2E189Oeaan2m9c4"))
     
 #https://www.youtube.com/playlist?list=PLm2GllkbPBKioaJI9Mjazr9uKAEGzId67
     
@@ -43,20 +44,17 @@ def download_process(url: str):
     download_path = str(os.path.join(os.path.expanduser("~"), "Downloads"))
 
     for video in pl.videos:
-        video.register_on_progress_callback(call_show_download_progress_method)
-        video.register_on_complete_callback(call_show_download_completed_method)
+        video.register_on_progress_callback(show_download_progress)
+        video.register_on_complete_callback(show_download_completed)
     
         global file_size
         file_size = 0
         video.streams.get_highest_resolution().download(download_path)
 
 def call_download_method():
-    #prcs1 = Process(target= download())
-    #prcs1.start()
-    #prcs1.join()
-    thr1= threading.Thread(target= download())
-    thr1.start()
-    
+    prcs2 = Process(target= download())
+    prcs2.start()
+    prcs2.join()  
     
 def call_download_process_method(url: str):
     thr2 = threading.Thread(target= download_process, args=(url,))
@@ -80,8 +78,12 @@ def main():
     button.pack()
     main_window.mainloop()
     
+def call_main_method():
+    prcs1 = Process(target= main())
+    prcs1.start()
+        
 if __name__ == "__main__":
     #main()
-    cProfile.run('main()', sort='tottime')
+    cProfile.run('call_main_method()', sort='tottime')
     print(time.perf_counter())
     
