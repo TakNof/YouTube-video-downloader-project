@@ -1,8 +1,11 @@
 from tkinter.ttk import Progressbar
 from tkinter import HORIZONTAL
-from pytube import YouTube
+from pytube import Playlist
 import tkinter as tk
+import os
 import time
+import threading
+import cProfile
 
 def show_download_progress(stream, chunk: bytes, bytes_remaining: int):
     global file_size
@@ -20,6 +23,7 @@ def show_download_progress(stream, chunk: bytes, bytes_remaining: int):
 
 def show_download_completed(stream, path: str):
     print("\nDownload complete.\n")
+    download_window.bell()
     
 def download():
     global download_window
@@ -30,24 +34,54 @@ def download():
     download_bar = Progressbar(download_window, orient= HORIZONTAL, length= 300)
     download_bar.pack()
     
-    download_window.after(300, download_process)
+    download_window.after(300, lambda: call_download_process_method("https://www.youtube.com/playlist?list=PLzxRtqFRLWZ892ytyZ2E189Oeaan2m9c4"))
     
+#https://www.youtube.com/playlist?list=PLm2GllkbPBKioaJI9Mjazr9uKAEGzId67
     
-    
-def download_process():
-    yt = YouTube("https://www.youtube.com/watch?v=iKVrx5Vx1rs")
+def download_process(url: str):
+    pl = Playlist(url)
+    download_path = str(os.path.join(os.path.expanduser("~"), "Downloads"))
 
-    yt.register_on_progress_callback(show_download_progress)
-    yt.register_on_complete_callback(show_download_completed)
+    for video in pl.videos:
+        video.register_on_progress_callback(call_show_download_progress_method)
+        video.register_on_complete_callback(call_show_download_completed_method)
+    
+        global file_size
+        file_size = 0
+        video.streams.get_highest_resolution().download(download_path)
 
-    global file_size
-    file_size = 0
-    yt.streams.get_audio_only().download()
+def call_download_method():
+    #prcs1 = Process(target= download())
+    #prcs1.start()
+    #prcs1.join()
+    thr1= threading.Thread(target= download())
+    thr1.start()
     
     
-main_window = tk.Tk() 
+def call_download_process_method(url: str):
+    thr2 = threading.Thread(target= download_process, args=(url,))
+    thr2.start()
+    
+    
+def call_show_download_progress_method(stream, chunk: bytes, bytes_remaining: int):
+    thr3 = threading.Thread(target= show_download_progress, args=(stream, chunk, bytes_remaining,))
+    thr3.start()
+  
+    
+def call_show_download_completed_method(stream, path: str):
+    thr4 = threading.Thread(target= show_download_completed, args=(stream, path,))
+    thr4.start()
+    
+    
+def main():
+    main_window = tk.Tk() 
 
-button = tk.Button(main_window, text="Download", font= "Sans-serif 8", command=download)
-button.pack()
-
-main_window.mainloop()
+    button = tk.Button(main_window, text="Download", font= "Sans-serif 8", command=call_download_method)
+    button.pack()
+    main_window.mainloop()
+    
+if __name__ == "__main__":
+    #main()
+    cProfile.run('main()', sort='tottime')
+    print(time.perf_counter())
+    

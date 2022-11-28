@@ -2,8 +2,11 @@ import os
 from tkinter import END, HORIZONTAL, BooleanVar, PhotoImage, StringVar, filedialog, messagebox
 from tkinter.ttk import Progressbar
 
+import threading 
 import youtube_downloader
 import tkinter as tk
+import cProfile
+import time
 
 def center_element_x(screen_width: int, element_width = 0, type: str = "px"):
     """
@@ -78,11 +81,8 @@ def set_download_path_to_default(label: tk.Label):
         options_window (tk.Toplevel): _description_
         label (tk.Label): _description_
     """
-    global download_path
-    global default_download_path
     download_path = default_download_path
     
-    global yd
     yd.set_download_path(download_path)
     
     refresh_label(label, f"The current download folder is:\n{download_path}")
@@ -113,7 +113,6 @@ def set_download_path():
         else:
             return read_config_file.split("= ")[-1]
     except IOError:
-        global default_download_path
         config_file_w = open(config_file_name, 'w')
         config_file_w.write("download_path = " + default_download_path)
         
@@ -131,18 +130,16 @@ def change_download_path(label: tk.Label):
     new_download_path = filedialog.askdirectory()
 
     #Here we load the choosen folder path to the download path variable, if not empty.
-    global download_path
     if new_download_path != "":
         config_file_w = open(config_file_name, 'w')
         config_file_w.write("download_path = " + new_download_path)
         config_file_w.close()
         
-    download_path = new_download_path
-    #Same happens for the youtube object of the youtube_downloader class.
-    global yd
-    yd.set_download_path(download_path)
-    #Finally, we refresh the label through the created method.
-    refresh_label(label, f"The current download folder is:\n{download_path}")
+        download_path = new_download_path
+        #Same happens for the youtube object of the youtube_downloader class.
+        yd.set_download_path(download_path)
+        #Finally, we refresh the label through the created method.
+        refresh_label(label, f"The current download folder is:\n{download_path}")
     
 def refresh_label(label: tk.Label, new_str: str):
     """
@@ -165,7 +162,7 @@ def download(link: str, open_file_confirmation: BooleanVar, download_audio_only_
     """
     This method downloads the video or audio file from the specified link given.
     Args:
-        link (str): The link of the video to be downloaded.
+        link (str): The link of the video or playlist to be downloaded.
         open_file_confirmation (BooleanVar): The boolean flag to indicate whether to open the file or not when downloaded.
         download_audio_only_confirmation (BooleanVar): The boolean flag to indicate whether to download only the audio oh the video or not.
     """
@@ -174,24 +171,26 @@ def download(link: str, open_file_confirmation: BooleanVar, download_audio_only_
     #Otherwise the download screen will be displayed indicating that the download has begun successfully.
     if link == "":
         messagebox.showwarning("Error downloading video file", "Provide a link video to download")
-    elif "watch" not in link:
+    elif "watch" not in link and "playlist" not in link:
         messagebox.showerror("Error downloading video file", "The given video link was not found.")
     else:
+        #Here we have to check whether the url corresponds to a video or a playlist, so we check it using the
+        #keywords located in the url itself. This changes some of the processes of previous versions.
+        if "playlist" in link or "list" in link:
+            global is_playlist
+            is_playlist = True
         show_download_window(link, open_file_confirmation, download_audio_only_confirmation)
         
 def show_download_window(link: str, open_file_confirmation: BooleanVar, download_audio_only_confirmation: BooleanVar):
     """
     This method dislplays the download window.
     Args:
-        link (str): The link of the video to be downloaded.
+        link (str): The link of the video or playlist to be downloaded.
         open_file_confirmation (BooleanVar): The boolean flag to indicate whether to open the file or not when downloaded.
         download_audio_only_confirmation (BooleanVar): The boolean flag to indicate whether to download only the audio oh the video or not.
     """
     #The file we will be downloading has its own size in bytes, so we need to create a variable to collect it, in order to display it
     #to the user indicating the time remainning of the download to finish.    
-    global file_size
-    file_size = 0
-    
     global download_window
     download_window = tk.Toplevel()
     download_window.geometry(str(screen_width) + "x" + str(screen_height))
@@ -199,21 +198,51 @@ def show_download_window(link: str, open_file_confirmation: BooleanVar, download
     
     #Here we stablish the atributes of the window.
     
-    #The main label.    
+    #The main label.
     download_label = tk.Label(download_window, text= "Downloading...", font=("Sans-serif", 16), justify="center")
     download_label.pack()
     
-    #The progress bar.
-    global progress_bar    
-    progress_bar = Progressbar(download_window, orient= HORIZONTAL, length= 300)
-    progress_bar.pack()
+    #The main progress bar.
+    global main_progress_bar    
+    main_progress_bar = Progressbar(download_window, orient= HORIZONTAL, length= 300)
+    main_progress_bar.pack()
     
     #The percentage of progress of the download.
     global percentage_download
     #Owing to the fact that the percentage of progress has to change through time it has to be stablished in this way.
     percentage_download = StringVar()
+    percentage_download.set("Starting download...") 
     percentage_download_label = tk.Label(download_window, textvariable= percentage_download)
     percentage_download_label.pack()
+    
+    #The bytes downloaded.
+    global bytes_downloaded
+    #Owing to the fact that the bytes downloaded changes through time it has to be stablished in this way.
+    bytes_downloaded = StringVar()
+    bytes_downloaded_label = tk.Label(download_window, textvariable= bytes_downloaded)
+    bytes_downloaded_label.pack()
+    
+    #The following items should be displayed only if the url given is a playlist.
+    if is_playlist:
+        #The task progress bar in case of donwloading a playlist.
+        global task_progress_bar    
+        task_progress_bar = Progressbar(download_window, orient= HORIZONTAL, length= 300)
+        task_progress_bar.pack()
+            
+        #The amount of tasks downloaded.
+        global tasks_completed
+        #Owing to the fact that the amount of tasks completed have to change through time it has to be stablished in this way.
+        tasks_completed = StringVar()
+        tasks_completed.set("Loading elements...")
+        tasks_completed_label = tk.Label(download_window, textvariable= tasks_completed)
+        tasks_completed_label.pack()
+        
+        #The total amount of bytes downloaded of the group of files.
+        global total_bytes_downloaded
+        #Owing to the fact that the bytes downloaded changes through time it has to be stablished in this way.
+        total_bytes_downloaded = StringVar()
+        total_bytes_downloaded_label = tk.Label(download_window, textvariable= total_bytes_downloaded)
+        total_bytes_downloaded_label.pack()
 
     #The label that indicates that the download has finished successfully.
     global download_complete_label
@@ -221,104 +250,178 @@ def show_download_window(link: str, open_file_confirmation: BooleanVar, download
     download_complete_label.pack()
     
     #It necessary to give the app certain time to display its elements before starting the download, 
-    #so that why we use this function to call the download process method with a delay of 300ms.
-    download_window.after(300, lambda: download_process(link, open_file_confirmation, download_audio_only_confirmation))
+    #so that why we use this function to call the download process method with a delay of 500ms.
+    download_window.after(500, lambda: download_process(link, open_file_confirmation.get(), download_audio_only_confirmation.get()))
 
-def download_process(link: str, open_file_confirmation: BooleanVar, download_audio_only_confirmation: BooleanVar):
+def download_process(link: str, open_file_confirmation: bool, download_audio_only_confirmation: bool):
     """
     This method starts the download process.
     Args:
-        link (str): The link of the video to be downloaded.
+        link (str): The link of the video or playlist to be downloaded.
         open_file_confirmation (BooleanVar): The boolean flag to indicate whether to open the file or not when downloaded.
         download_audio_only_confirmation (BooleanVar): The boolean flag to indicate whether to download only the audio oh the video or not.
     """
-    #Conditional to know if whether the video or the audio is going to be downloaded.
-    if download_audio_only_confirmation.get() is True:
-        download_audio(link, open_file_confirmation.get())
-    else:
-        download_video(link, open_file_confirmation.get())
+    global is_playlist
+    #Here we load the link of the video or playlist to the class.
+    yd.set_url(link)
+    
+    #Boolean flag to take one process or another.
+    if is_playlist:
+        
+        #If true, then it means there are multiple downloads to be done. So we have to check how many elements
+        #are going to be downloaded. We create a global variable and we use the playlist object to do it so.
+        global total_tasks
+        total_tasks = len(yd.get_pl_ob().video_urls)
+        
+        #As well, we need to let the user know how many elements have been downloaded since the start of the process.
+        #So we need a count of the current number of elements that have been downloaded successfully.
+        global current_task
+        current_task = 0
+        
+        #In order to show the amount of data that will be downloaded, we need to collect all the size of the
+        #files to be downloaded. We do this by iterating over a for loop.
+        global total_size_of_download
+        total_size_of_download = 0
+        for video in yd.get_pl_ob().video_urls:
+            total_size_of_download += int(yd.get_size_of_file(download_audio_only_confirmation, True, video))
 
-def download_video(link: str, open_file_confirmation: bool):
-    """
-    This method downloads the video file.
-    Args:
-        link (str): The link of the video to be downloaded.
-        open_file_confirmation (BooleanVar): The boolean flag to indicate whether to open the file or not when downloaded.
-    """
-    #Here we load the link of the video to the class.
-    global yd
-    yd.set_url(link)
-    #As well, we use the methods to register the progress and the completion of the download.
-    yd.get_yt_ob().register_on_progress_callback(show_download_progress)
-    yd.get_yt_ob().register_on_complete_callback(show_download_completed)
-    yd.download_video(open_file_confirmation)
+        global current_total_download
+        current_total_download = 0
     
-def download_audio(link: str, open_file_confirmation: bool):
-    """
-    This method downloads the audio file.
-    Args:
-        link (str): The link of the video to be downloaded.
-        open_file_confirmation (BooleanVar): The boolean flag to indicate whether to open the file or not when downloaded.
-    """
-    #Here we load the link of the video to the class.
-    global yd
-    yd.set_url(link)
-    #As well, we use the methods to register the progress and the completion of the download.
-    yd.get_yt_ob().register_on_progress_callback(show_download_progress)
-    yd.get_yt_ob().register_on_complete_callback(show_download_completed)
-    yd.download_audio(open_file_confirmation)
+        global specific_file_size_of_download
+        specific_file_size_of_download = 0
+               
+        #A for cicle to iterate along all the video urls in the playlist.
+        for video in yd.get_pl_ob().video_urls:
+            #We set the file size as global and stablish it as 0 for each time the loop is executed.
+            global file_size
+            file_size = 0
+            
+            #Here we create the YouTube object through the modified method.
+            yd.set_yt_ob(True, video)
+            yd.set_download_file_name()
+            
+            specific_file_size_of_download = yd.get_size_of_file(download_audio_only_confirmation, True, video)                               
+           
+            #We use the methods to register the progress and the completion of the download.
+            yd.get_yt_ob().register_on_progress_callback(show_main_download_progress)
+            yd.get_yt_ob().register_on_complete_callback(show_main_download_completed)
+                       
+            #Conditional to know if whether the video or the audio is going to be downloaded.
+            if download_audio_only_confirmation is True:
+                yd.download_audio(open_file_confirmation)
+            else: 
+                yd.download_video(open_file_confirmation)
+            
+            specific_file_size_of_download = 0
+                    
+        time.sleep(2)    
+        current_task = 0       
+        
+    else:
+        #We use the methods to register the progress and the completion of the download.
+        yd.get_yt_ob().register_on_progress_callback(show_main_download_progress)
+        yd.get_yt_ob().register_on_complete_callback(show_main_download_completed)
+        
+        #Conditional to know if whether the video or the audio is going to be downloaded.
+        if download_audio_only_confirmation is True:
+            yd.download_audio(open_file_confirmation)
+        else: 
+            yd.download_video(open_file_confirmation)
     
-def show_download_progress(stream, chunk: bytes, bytes_remaining: int):
+def show_main_download_progress(stream, chunk: bytes, bytes_remaining: int):
     """
     This method shows the progress of the download.
     Args:
         stream (_type_): The stream of the video to download.
         chunk (bytes): Amount of bytes to download.
         bytes_remaining (int): The bytes remaining to download.
-    """
-    global file_size
-    global download_state
-    
+    """   
     #First here we set that if the variable file size is empty means that it has not storaged
     #the real file size, therefore we know that the bytes remaining will be the real file size.
     #Here we stablish the download state variable too.
     #When the file size is determined we start loading the values of the download state to its
     #variable, calculating it through a simply procedure.
+    global file_size
     if file_size == 0:
         file_size = bytes_remaining
         download_state = 0
     else:
-        download_state = round((file_size - bytes_remaining)*100/file_size, 2)
-    
+        download_state = str(round((file_size - bytes_remaining)*100/file_size, 2))
+        
     #The variable of the progress bar is determined by the download state variable.
-    global progress_bar
-    global download_window
-    progress_bar['value'] = download_state
+    global main_progress_bar  
+    main_progress_bar['value'] = download_state
     
     #So does the percentage of the download.
     global percentage_download
     percentage_download.set(str(download_state) + "%")
-        
+    
+    global bytes_downloaded
+    bytes_downloaded.set(
+        "".join([str(item) for item in convert_bytes(round(specific_file_size_of_download - int(bytes_remaining), 2))]) 
+        + "/" + 
+        "".join([str(item) for item in convert_bytes(round(specific_file_size_of_download, 2))]))
+    
+    #A conditional to display the progress bar of the individual tasks.
+    if is_playlist:
+        #A conditional to display the label of the specific task progress.
+        if bytes_remaining == 0:
+            global current_task
+            current_task += 1
+            
+        show_task_progress()
+   
     #Lastly, we update the labels every time a cycle of the callback is executed.
+    global download_window
     download_window.update_idletasks()
 
-def show_download_completed(stream, path: str):
+def show_main_download_completed(stream, path: str):
     """
     This method shows the completion of the download in the window.
     Args:
         stream (_type_): The stream of the video to download.
         path(str): The path to the video to download.
     """
+            
+    #The label shows finally the message.
+    global download_complete_label
+    if is_playlist:
+        if current_task == total_tasks:
+            refresh_label(download_complete_label, "Download completed succesfully")
+    else:
+        refresh_label(download_complete_label, "Download completed succesfully")
+    
     #When the download is completed, we update the windows one more time to show it to the user.
     #Then a bell sounds, indicating the completion of the download.
     global download_window
     download_window.update_idletasks()
     download_window.bell()
+
+def show_task_progress():
+    #Now this task progress is determined by the amount of tasks completed and the total number of tasks to finish.
+    global current_task
+    global total_tasks
+    task_state = str((current_task/total_tasks)*100)
     
-    #The label shows finally the message.
-    global download_complete_label
-    refresh_label(download_complete_label, "Download completed succesfully")
-    
+    #The variable of the progress var is determined by the task state variable.
+    global task_progress_bar
+    task_progress_bar['value'] = task_state
+        
+    #So does the percentage of the download.
+    global tasks_completed
+    tasks_completed.set(str(current_task) + "/" + str(total_tasks) + " videos downloaded.")    
+
+def convert_bytes(bytes_given: int):
+    if bytes_given/1024 <= 0.5:
+        return [bytes_given/1024, "KB"]
+    elif bytes_given/1048576 <= 0.5:
+        return [bytes_given/1048576, "MB"]
+    elif bytes_given/10737418274 <= 0.5:
+        return [bytes_given/10737418274, "GB"]
+    elif bytes_given/1099511627776 <= 0.5:
+        return [bytes_given/1099511627776, "TB"]     
+
 def main():
     """
     Main method for excecution of the code.
@@ -328,14 +431,14 @@ def main():
     root = tk.Tk()
     
     #title of the app
-    title = "Youtube video downloader"
+    title = "YouTube video downloader \nV3.0.2"
     root.title(title)
 
     #Setting of the screen width and height of the windows of the app.
     global screen_width
     global screen_height
     screen_width = 400
-    screen_height = 350
+    screen_height = 400
 
     #Letter type.
     letter_type1 = 'Sans-serif 10'
@@ -360,14 +463,27 @@ def main():
     #Here we create a YouTube Downloader class object
     global yd
     yd = youtube_downloader.youtube_downloader()
+    
+    #The file to be downloaded will have its file size, so we create a variable to save it.
+    global file_size
+    file_size = 0
+    
+    #As well, when downloading it will have a current state of download, so we save it in a variable.
+    global download_state
+    download_state = 0
 
     #Here we assign the download path through the method set_download_path.
+    global download_path
     download_path = set_download_path()
+    
+    #If the link provided is a playlist we state a boolean variable to indicate whether it is or not.
+    global is_playlist
+    is_playlist = False
 
     #Then we stablish it to the YouTube object.
     yd.set_download_path(download_path)
         
-    #Here the image of the application is loaded.
+    #Here the icon of the application is loaded.
     icon = PhotoImage(file="Icono.png")
     root.iconphoto(True, icon)
     
@@ -385,10 +501,10 @@ def main():
     title_text.pack() 
 
     #Here we give the instructions to the user, in order to let them know what to do and the purpose of the app.
-    message = tk.Label(root, text="Put the youtube video link\ninto the box below to download it.", font=("Sans-serif", 16), justify="center")
-    message.pack(pady = 40)
+    message = tk.Label(root, text="Put the youtube video or playlist link\ninto the box below to download it.", font=("Sans-serif", 16), justify="center")
+    message.pack(pady = 10)
 
-    #Here we give an entry box for the user. Here they will provide the link of the video they want to download.
+    #Here we give an entry box for the user. Here they will provide the link of the video or playlist they want to download.
     download_box = tk.Entry(root, font='Sans-serif', border=2,width=download_box_width)
     download_box.place(x=center_element_x(screen_width, download_box_width, "un"), y=140)
 
@@ -405,7 +521,7 @@ def main():
                                       font='Sans-serif 24',
                                       text="Download",
                                       command= lambda: download(download_box.get(), open_file_confirmation, download_audio_only_confirmation))
-    download_video_button.pack()
+    download_video_button.pack(pady = 30)
     
     #We noticed that one of the most common actions the users do is to press the return button in order to let the download begin.
     #Here we stablished the key bind to facilitate the download to the users.
@@ -443,4 +559,5 @@ def main():
 
 #Protocol setup if
 if __name__ == "__main__":
-    main()
+    #main()
+    cProfile.run('main()', sort='tottime')
