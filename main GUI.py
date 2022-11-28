@@ -335,6 +335,9 @@ def download_process(link: str, open_file_confirmation: bool, download_audio_onl
         current_total_download = 0       
         
     else:
+        #This variable collects the total file size of the video.
+        specific_file_size_of_download = yd.get_size_of_file(download_audio_only_confirmation)
+        
         #We use the methods to register the progress and the completion of the download.
         yd.get_yt_ob().register_on_progress_callback(show_main_download_progress)
         yd.get_yt_ob().register_on_complete_callback(show_main_download_completed)
@@ -536,6 +539,7 @@ def main():
     root.config(bg="White", border= "1px solid")
     root.resizable(False, False)
 
+    #Here we center the left-upper corner of the aplication window.
     root.eval("tk::PlaceWindow . center")
     
     #The title of the app is stablished and setted to the canvas.
