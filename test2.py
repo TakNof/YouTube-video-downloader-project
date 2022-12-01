@@ -34,9 +34,10 @@ def download():
     download_bar = Progressbar(download_window, orient= HORIZONTAL, length= 300)
     download_bar.pack()
     
-    download_window.after(300, lambda: download_process("https://www.youtube.com/playlist?list=PLzxRtqFRLWZ892ytyZ2E189Oeaan2m9c4"))
-    
+    download_window.after(300, lambda: download_process("https://www.youtube.com/watch?v=VlWyaYyYXNg&list=RDMM&start_radio=1&rv=1Zrq8FiKS6A"))
+
 #https://www.youtube.com/playlist?list=PLm2GllkbPBKioaJI9Mjazr9uKAEGzId67
+#https://www.youtube.com/playlist?list=PLzxRtqFRLWZ892ytyZ2E189Oeaan2m9c4
     
 def download_process(url: str):
     pl = Playlist(url)
@@ -81,6 +82,12 @@ def main():
     main_window.mainloop()
     
 if __name__ == "__main__":
+    st = time.process_time()
     #main()
     cProfile.run('main()', sort='tottime')
-    print(time.perf_counter())
+    et = time.process_time()
+    res = et - st
+    if res >= 60:
+        print(f"All the downloads have finished in {res/60} minutes.")
+    else:
+        print(f"All the downloads have finished in {res} seconds.")

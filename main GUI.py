@@ -467,7 +467,7 @@ def main():
     Main method for excecution of the code.
     """
     #Indicates the current version of the application
-    app_version_text = "V3.1"
+    app_version_text = "V3.1.0"
     
     #Creating the main window of the app.
     root = tk.Tk()

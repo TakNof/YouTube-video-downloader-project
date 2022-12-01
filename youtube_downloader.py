@@ -137,17 +137,13 @@ class youtube_downloader:
             confirmation_open_file (bool): a bool indicating wether to open the file when the donwload is completed or not.
         """
         
-        #Here we indicate we are downloading the video file with the highest quality available,
-        #as well as the video download path where it will be located.
-        self.video.streams.get_audio_only().download(self.download_path, f"{self.download_file_name}.mp4")
-        
-        #A curious thing is when the audio of the video is downloaded it downloads with .mp4 extension instead of .mp3.
-        #Because of that we rename the audio file to .mp3 directly in the system.
-        os.rename(f"{self.download_path}\\{self.download_file_name}.mp4", f"{self.download_path}\\{self.download_file_name}.mp3")
-        
-        #Here we add the extention of the audio file to the string saving it.
-        self.download_file_name = f"{self.download_file_name}.mp3"
-        
+        #Here we indicate we are downloading the audio of the video file choosen,
+        #as well as the audio download path where it will be located.
+        #Here it's solved an issue with the convertion of the format from mp4 to mp3.
+        #It seems like you can set the extention of the file by naming it, and doing so 
+        #the mp3 file is no longer corrupted when trying to use the downloaded audio into a edition app.
+        self.video.streams.get_audio_only().download(self.download_path, f"{self.download_file_name}.mp3")
+                
         #If the confirmation to open the file was True, we call for the open_downloaded_file method.
         if confirmation_open_file is True:
             self.open_downloaded_file()
