@@ -1,6 +1,7 @@
 from tkinter.ttk import Progressbar
 from tkinter import HORIZONTAL
 from pytube import Playlist
+from pytube import YouTube
 import tkinter as tk
 import os
 import time
@@ -46,7 +47,7 @@ def download_process(url: str):
     for video in pl.videos:
         video.register_on_progress_callback(show_download_progress)
         video.register_on_complete_callback(show_download_completed)
-    
+        
         global file_size
         file_size = 0
         video.streams.get_highest_resolution().download(download_path)

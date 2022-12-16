@@ -1,11 +1,15 @@
 from tkinter import END, HORIZONTAL, BooleanVar, PhotoImage, StringVar, filedialog, messagebox
 from tkinter.ttk import Progressbar
+from bs4 import BeautifulSoup
 
 import os
 import youtube_downloader
 import tkinter as tk
+import threading
 import cProfile
 import time
+import webbrowser
+import requests
 
 def center_element_x(screen_width: int, element_width = 0, type: str = "px"):
     """
@@ -31,7 +35,7 @@ def center_element_x(screen_width: int, element_width = 0, type: str = "px"):
     else:
         raise BaseException("The type argument must be either 'px', 'un' or 'text' ")
 
-def open_options(download_path: str):
+def open_options():
     """
     This method opens the options window.
     Args:
@@ -40,7 +44,9 @@ def open_options(download_path: str):
     
     #Creating a new window which will be displayed on the top.
     options_window = tk.Toplevel()
+    options_window.attributes("-topmost", True)
     options_window.geometry(str(screen_width) + "x" + str(screen_height))
+    root.eval(f'tk::PlaceWindow {str(options_window)} center')
     
     #A label with the download path will be displayed on the new window, to let the user know where the download will be saved.
     download_path_message = tk.Label(options_window, text=f"The current download folder is:\n{download_path}", font=("consolas", 14), justify="left")
@@ -60,7 +66,7 @@ def open_options(download_path: str):
                                     text= "Open selected folder",
                                     cursor="hand2",
                                     activebackground="#badee2",
-                                    command= lambda: open_selected_folder(),
+                                    command= lambda: os.startfile(set_download_path()),
                                     font=("Consolas", 12))
     open_selected_folder_button.pack(padx=0)
     
@@ -73,11 +79,15 @@ def open_options(download_path: str):
                                     font=("Consolas", 12))
     reset_download_path_button.pack(padx=0)
     
-def open_selected_folder():
-    """
-    This method allows to open selected folder where the files will be downloaded.
-    """
-    os.startfile(set_download_path())
+    #Here we create a button to close the current window.
+    close_button(options_window, "Consolas", 12).pack(padx=0)
+    
+#This method has been replaced with a lambda function.    
+#def open_selected_folder():
+#    """
+#    This method allows to open selected folder where the files will be downloaded.
+#    """
+#    os.startfile(set_download_path())
     
 def set_download_path_to_default(label: tk.Label):
     """
@@ -158,14 +168,15 @@ def refresh_label(label: tk.Label, new_str: str):
         new_str (str): The new string which will be dislplayed in the label.
     """
     label.config(text= new_str)
-    
-def clear(box: tk.Entry):
-    """
-    This method clears the link box of the application.
-    Args:
-        box (tk.Entry): An object representing a box of tkinter
-    """
-    box.delete(0,END)
+
+#This method has been replaced by a lambda function.   
+#def clear(box: tk.Entry):
+#    """
+#    This method clears the link box of the application.
+#    Args:
+#        box (tk.Entry): An object representing a box of tkinter
+#    """
+#    box.delete(0,END)
     
 def download(link: str, open_file_confirmation: BooleanVar, download_audio_only_confirmation: BooleanVar):
     """
@@ -188,9 +199,19 @@ def download(link: str, open_file_confirmation: BooleanVar, download_audio_only_
         if "playlist" in link or "list" in link:
             global is_playlist
             is_playlist = True
-        show_download_window(link, open_file_confirmation, download_audio_only_confirmation)
+            
+        #With the new implementation of multi-threading, we need to stablish the target of the thread, as well as it's arguments.
+        global thr
+        thr = threading.Thread(target=download_process, args =(link, open_file_confirmation.get(), download_audio_only_confirmation.get()))
         
-def show_download_window(link: str, open_file_confirmation: BooleanVar, download_audio_only_confirmation: BooleanVar):
+        #Here we stablish a global stop event to stop the thread.
+        global stop_event
+        stop_event = threading.Event()
+        
+        #Owing that the arguments are saved in the thread, it's no longer needed to pass those arguments to the method.
+        show_download_window()
+        
+def show_download_window():
     """
     This method dislplays the download window.
     Args:
@@ -204,6 +225,11 @@ def show_download_window(link: str, open_file_confirmation: BooleanVar, download
     download_window = tk.Toplevel()
     download_window.geometry(str(screen_width) + "x" + str(screen_height))
     download_window.attributes("-topmost", True)
+    download_window.focus_set()
+    root.eval(f'tk::PlaceWindow {str(download_window)} center')
+    
+    #Here we stablish a protocol to stop the thread when the download window is suddenly closed.
+    download_window.protocol("WM_DELETE_WINDOW", stop_thread)
     
     #Here we stablish the atributes of the window.
     
@@ -258,9 +284,12 @@ def show_download_window(link: str, open_file_confirmation: BooleanVar, download
     download_complete_label = tk.Label(download_window, text= "", font=("Sans-serif", 16), justify="center")
     download_complete_label.pack()
     
+    #Here we create a button to close the current window.
+    close_button(download_window, "Consolas", 12).pack(padx=0)
+    
     #It necessary to give the app certain time to display its elements before starting the download, 
     #so that why we use this function to call the download process method with a delay of 500ms.
-    download_window.after(500, lambda: download_process(link, open_file_confirmation.get(), download_audio_only_confirmation.get()))
+    download_window.after(500, download_process_thread)
 
 def download_process(link: str, open_file_confirmation: bool, download_audio_only_confirmation: bool):
     """
@@ -329,7 +358,8 @@ def download_process(link: str, open_file_confirmation: bool, download_audio_onl
             #the current state of the total donwload corresponds to the sum of all the specific ones
             #at the end of each iteration.
             current_total_download += specific_file_size_of_download
-            specific_file_size_of_download = 0  
+            specific_file_size_of_download = 0
+            
         #Here we reset this variables for future uses.
         current_task = 0
         current_total_download = 0       
@@ -462,14 +492,119 @@ def convert_bytes(bytes_given: int) -> list:
     elif bytes_given/1099511627776 <= 10:
         return [round(bytes_given/1099511627776, 2), "TB"]     
 
+def check_version():
+    """
+    This method checks if there is a newer version of the app.
+    """
+    
+    #Here we get the current version of the app, and the digits separated in an array.
+    global app_version_text
+    separated_digits_app_version_text = app_version_text.replace("V","").split(".")
+
+    #The url of the repositoy.
+    url = "https://github.com/TakNof/YouTube-video-downloader-project/releases"
+
+    #The request of the repository
+    result = requests.get(url)
+
+    #The whole reading of HTML loaded in a variable.
+    doc = BeautifulSoup(result.text, "html.parser")
+
+    #Here we get the latest version from the HTML file in a clean way.
+    latest_version = doc.find_all("span", class_="ml-1 wb-break-all")[0].string.replace("\n","").replace(" ", "")
+
+    #The latest version digits in separated in an array.
+    separated_digits_latest_version = latest_version.replace("V","").split(".")
+
+    #Here we create a lambda function to compare the digits of both versions.
+    greater_than = lambda x,y: True if x > y else False
+    
+    #Here we use a conditional with a any function, used to compare the digits of the versions.
+    #If true, it means the current version is lower than the version uploaded to the repository,
+    #thus we upen the update window.
+    if any(greater_than(separated_digits_latest_version[i], separated_digits_app_version_text[i]) for i in range(3)):
+        open_update_window(latest_version)
+        
+def open_update_window(lastest_version: str):
+    """
+    This method opens the window of update functionality.
+    """
+    #Creating a new window which will be displayed on the top.
+    update_window = tk.Toplevel()
+    update_window.geometry()
+    update_window.attributes("-topmost", True) 
+    #update_window.
+    root.eval(f'tk::PlaceWindow {str(update_window)} center')
+        
+    #The message to the user to let they know of the new update.
+    update_message_str = f"There is a newer version available.\nDo you want to download it?\nYour version: {app_version_text}.\nLatest version: {lastest_version}"
+    
+    #A label that displays the update message to the user.
+    download_path_message = tk.Label(update_window, text=update_message_str, font=("consolas", 16), justify="center")
+    download_path_message.grid(row=0, column=2)
+    
+    #The yes button.
+    yes_button = tk.Button(update_window,
+                            text="Yes",
+                            cursor="hand2",
+                            activebackground="#badee2",
+                            command = lambda: (webbrowser.open(repository_url), update_window.destroy()),
+                            font=("Consolas", 16),
+                            width=6)
+    yes_button.grid(row=1, column=1)
+    
+    #The no button.
+    no_button = tk.Button(update_window,
+                                    text= "No",
+                                    cursor="hand2",
+                                    activebackground="#badee2",
+                                    command= lambda: update_window.destroy(),
+                                    font=("Consolas", 16),
+                                    width=6)
+    no_button.grid(row=1, column=3)
+
+def close_button(window: tk.Toplevel, font: str = "Consolas", size: int = "16"):
+    """
+    Default close button creator.
+    Args:
+        window (tk.Toplevel): a tkinter object of the toplevel window
+        font (str, optional): The font of the text. Defaults to "Consolas".
+        size (int, optional): The size of the text. Defaults to "16".
+
+    Returns:
+        tk.Button: a tkinter button object.
+    """
+    return tk.Button(window, text="Close", cursor="hand2", activebackground="#badee2", command= lambda: window.destroy(), font=(font, size), width=6)
+
+def download_process_thread():
+    """
+    Starts the download process through the thread.
+    """
+    if not thr.is_alive():
+        thr.start()
+        stop_event.clear()
+    else:
+        thr.run()
+                
+def stop_thread():
+    """
+    Stops the thread if it is still running the download process.
+    """
+    if thr.is_alive():
+        stop_event.set()
+    
+    download_window.destroy() 
+
 def main():
     """
     Main method for excecution of the code.
     """
     #Indicates the current version of the application
-    app_version_text = "V3.1.0"
+    global app_version_text
+    app_version_text = "V3.0.1"
     
     #Creating the main window of the app.
+    global root
     root = tk.Tk()
     
     #title of the app
@@ -530,6 +665,10 @@ def main():
     icon = PhotoImage(file="Icono.png")
     root.iconphoto(True, icon)
     
+    #The url of the project in github, to let the user donwload the latest version if needed.
+    global repository_url
+    repository_url = "https://github.com/TakNof/YouTube-video-downloader-project/releases"
+            
     #Here we set the main characteristics of the main window of the app.
     
     #Here we concatenate the screen width and height to create the canvas.
@@ -560,7 +699,7 @@ def main():
                                text="Options",
                                cursor="hand2",
                                activebackground="#badee2",
-                               command=lambda: open_options(download_path))
+                               command= open_options)
     options_button.place(x=400 - center_element_x(screen_width, download_box_width, "un"), y=140)
 
     #Sometimes, the user may paste something wrong or something they didn't meant to, so we stablish a clear button to allow the user to clear the box at any time.
@@ -568,7 +707,8 @@ def main():
                              font=letter_type1,
                              text="Clear",
                              cursor="hand2",
-                             command=lambda: clear(download_box), width=6)
+                             command=lambda: download_box.delete(0,END),
+                             width=6)
     clear_button.place(x=400 - center_element_x(screen_width, download_box_width, "un"), y=168)
 
     #Here we set the download button. It's big and it's clear what the button does.
@@ -616,6 +756,11 @@ def main():
     app_version = tk.Label(root, font=letter_type2, text= app_version_text)
     app_version.pack()
 
+    #In order to keep the users engaged with the project, we need to inform the user 
+    #of the latest version of the application. So we need to compare the current version
+    #of the app and the latest version of the repository.
+    check_version()
+    
     #Main loop for keeping the app running.
     root.mainloop()
 

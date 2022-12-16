@@ -8,6 +8,9 @@ from pytube import YouTube
 #this one lasts 2 seconds longer than the original process. More benchmarking should be
 #done in order to check if is there a case where performance is better than the original.
 
+#The procedure hasn't been done with the GUI operating, so we do not know if it ends up
+#being better than the original process. This will be done in the test 7 file.
+
 def download(video: YouTube, num: int):
     video_titles.append(video.title)
     print(f"downloading video #{num}.")
@@ -15,13 +18,15 @@ def download(video: YouTube, num: int):
     print(f"video #{num} donwloaded.")
         
 def main():
-    url = "https://www.youtube.com/watch?v=VlWyaYyYXNg&list=RDMM&start_radio=1&rv=1Zrq8FiKS6A"
+    url = "https://www.youtube.com/playlist?list=PLzxRtqFRLWZ892ytyZ2E189Oeaan2m9c4"
 
     global download_path
     download_path = str(os.path.join(os.path.expanduser("~"), "Downloads"))
     
     pl = Playlist(url)
 
+    
+    
     global video_titles
     video_titles = []
         

@@ -4,7 +4,7 @@ from pytube import Playlist
 import tkinter as tk
 import os
 import time
-import threading
+from threading import Thread
 import cProfile
 
 def show_download_progress(stream, chunk: bytes, bytes_remaining: int):
@@ -31,10 +31,10 @@ def download():
     download_window.geometry(newGeometry="700x700")
     
     global download_bar
-    download_bar = Progressbar(download_window, orient= HORIZONTAL, length= 300)
-    download_bar.pack()
+    download_bar = Progressbar(download_window, orient= HORIZONTAL)
+    download_bar.pack(fill="x")
     
-    download_window.after(300, lambda: download_process("https://www.youtube.com/watch?v=VlWyaYyYXNg&list=RDMM&start_radio=1&rv=1Zrq8FiKS6A"))
+    download_window.after(300, lambda: download_process("https://www.youtube.com/playlist?list=PLzxRtqFRLWZ892ytyZ2E189Oeaan2m9c4"))
 
 #https://www.youtube.com/playlist?list=PLm2GllkbPBKioaJI9Mjazr9uKAEGzId67
 #https://www.youtube.com/playlist?list=PLzxRtqFRLWZ892ytyZ2E189Oeaan2m9c4
@@ -55,22 +55,22 @@ def call_download_method():
     #prcs1 = Process(target= download())
     #prcs1.start()
     #prcs1.join()
-    thr1= threading.Thread(target= download())
+    thr1= Thread(target= download())
     thr1.start()
     
     
 def call_download_process_method(url: str):
-    thr2 = threading.Thread(target= download_process, args=(url,))
+    thr2 = Thread(target= download_process, args=(url,))
     thr2.start()
     
     
 def call_show_download_progress_method(stream, chunk: bytes, bytes_remaining: int):
-    thr3 = threading.Thread(target= show_download_progress, args=(stream, chunk, bytes_remaining,))
+    thr3 = Thread(target= show_download_progress, args=(stream, chunk, bytes_remaining,))
     thr3.start()
   
     
 def call_show_download_completed_method(stream, path: str):
-    thr4 = threading.Thread(target= show_download_completed, args=(stream, path,))
+    thr4 = Thread(target= show_download_completed, args=(stream, path,))
     thr4.start()
     
     
