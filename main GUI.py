@@ -601,7 +601,7 @@ def main():
     """
     #Indicates the current version of the application
     global app_version_text
-    app_version_text = "V3.1git.1"
+    app_version_text = "V3.1.1"
     
     #Creating the main window of the app.
     global root
