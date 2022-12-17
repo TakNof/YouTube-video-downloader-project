@@ -2,7 +2,6 @@ from tkinter import END, HORIZONTAL, BooleanVar, PhotoImage, StringVar, filedial
 from tkinter.ttk import Progressbar
 from bs4 import BeautifulSoup
 
-import bs4
 import os
 import youtube_downloader
 import tkinter as tk

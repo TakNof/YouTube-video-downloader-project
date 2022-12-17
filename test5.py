@@ -9,7 +9,7 @@ from pytube import YouTube
 #the pc CPU. The more videos are in the playlist, the more processes are created into the array, thus 
 #when exceding the amount of available cores of the cpu, all the prcesses start to colapse the full system.
 
-#Even taking less amount of videos through the playlist it stil being very unefficient, it turns out to be
+#Even taking less amount of videos through the playlist it stills being very unefficient, it turns out to be
 #actually slower than the original procedure.
 
 def download(video: YouTube, num: int):
