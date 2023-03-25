@@ -10,6 +10,7 @@ import cProfile
 import time
 import webbrowser
 import requests
+import traceback
 
 def center_element_x(screen_width: int, element_width = 0, type: str = "px"):
     """
@@ -44,9 +45,6 @@ def open_options():
     
     #Creating a new window which will be displayed on the top.
     options_window = tk.Toplevel()
-    options_window.attributes("-topmost", True)
-    options_window.geometry(str(screen_width) + "x" + str(screen_height))
-    root.eval(f'tk::PlaceWindow {str(options_window)} center')
     
     #A label with the download path will be displayed on the new window, to let the user know where the download will be saved.
     download_path_message = tk.Label(options_window, text=f"The current download folder is:\n{download_path}", font=("consolas", 14), justify="left")
@@ -299,85 +297,115 @@ def download_process(link: str, open_file_confirmation: bool, download_audio_onl
         open_file_confirmation (BooleanVar): The boolean flag to indicate whether to open the file or not when downloaded.
         download_audio_only_confirmation (BooleanVar): The boolean flag to indicate whether to download only the audio oh the video or not.
     """
-    global is_playlist
-    #Here we load the link of the video or playlist to the class.
-    yd.set_url(link)
-    
-    #Boolean flag to take one process or another.
-    if is_playlist:
+    #Some errors might ocurr, so it's important to letting me know what triggered the error to solve it.
+    #That why I put the try except here.
+    try:
+        global is_playlist
+        #Here we load the link of the video or playlist to the class.
+        yd.set_url(link)
         
-        #If true, then it means there are multiple downloads to be done. So we have to check how many elements
-        #are going to be downloaded. We create a global variable and we use the playlist object to do it so.
-        global total_tasks
-        total_tasks = len(yd.get_pl_ob().video_urls)
-        
-        #As well, we need to let the user know how many elements have been downloaded since the start of the process.
-        #So we need a count of the current number of elements that have been downloaded successfully.
-        global current_task
-        current_task = 0
-        
-        #In order to show the amount of data that will be downloaded, we need to collect all the size of the
-        #files to be downloaded. We do this by iterating over a for loop.
-        global total_size_of_download
-        total_size_of_download = 0
-        for video in yd.get_pl_ob().video_urls:
-            total_size_of_download += int(yd.get_size_of_file(download_audio_only_confirmation, True, video))
-
-        #This variable collects the current state of the total donwload.
-        global current_total_download
-        current_total_download = 0
-
-        #This variable collects the specified size of the current iterated video.
-        global specific_file_size_of_download
-        specific_file_size_of_download = 0
-               
-        #A for cicle to iterate along all the video urls in the playlist.
-        for video in yd.get_pl_ob().video_urls:
-            #We set the file size as global and stablish it as 0 for each time the loop is executed.
-            global file_size
-            file_size = 0
+        #Boolean flag to take one process or another.
+        if is_playlist:
             
-            #Here we create the YouTube object through the modified method.
-            yd.set_yt_ob(True, video)
-            yd.set_download_file_name()
+            #If true, then it means there are multiple downloads to be done. So we have to check how many elements
+            #are going to be downloaded. We create a global variable and we use the playlist object to do it so.
+            global total_tasks
+            total_tasks = len(yd.get_pl_ob().video_urls)
             
-            #We stabilish its value through the method.
-            specific_file_size_of_download = yd.get_size_of_file(download_audio_only_confirmation, True, video)                               
-           
+            #As well, we need to let the user know how many elements have been downloaded since the start of the process.
+            #So we need a count of the current number of elements that have been downloaded successfully.
+            global current_task
+            current_task = 0
+            
+            #In order to show the amount of data that will be downloaded, we need to collect all the size of the
+            #files to be downloaded. We do this by iterating over a for loop.
+            global total_size_of_download
+            total_size_of_download = 0
+            for video in yd.get_pl_ob().video_urls:
+                total_size_of_download += int(yd.get_size_of_file(download_audio_only_confirmation, True, video))
+
+            #This variable collects the current state of the total donwload.
+            global current_total_download
+            current_total_download = 0
+
+            #This variable collects the specified size of the current iterated video.
+            global specific_file_size_of_download
+            specific_file_size_of_download = 0
+                
+            #A for cicle to iterate along all the video urls in the playlist.
+            for video in yd.get_pl_ob().video_urls:
+                #We set the file size as global and stablish it as 0 for each time the loop is executed.
+                global file_size
+                file_size = 0
+                
+                #Here we create the YouTube object through the modified method.
+                yd.set_yt_ob(True, video)
+                yd.set_download_file_name()
+                
+                #We stabilish its value through the method.
+                specific_file_size_of_download = yd.get_size_of_file(download_audio_only_confirmation, True, video)                               
+            
+                #We use the methods to register the progress and the completion of the download.
+                yd.get_yt_ob().register_on_progress_callback(show_main_download_progress)
+                yd.get_yt_ob().register_on_complete_callback(show_main_download_completed)
+                        
+                #Conditional to know if whether the video or the audio is going to be downloaded.
+                if download_audio_only_confirmation is True:
+                    yd.download_audio(open_file_confirmation)
+                else: 
+                    yd.download_video(open_file_confirmation)
+                
+                #We stablish this variable at the end of the loop because we know for sure that
+                #the current state of the total donwload corresponds to the sum of all the specific ones
+                #at the end of each iteration.
+                current_total_download += specific_file_size_of_download
+                specific_file_size_of_download = 0
+                
+            #Here we reset this variables for future uses.
+            current_task = 0
+            current_total_download = 0       
+            
+        else:
+            #This variable collects the total file size of the video.
+            specific_file_size_of_download = yd.get_size_of_file(download_audio_only_confirmation)
+            
             #We use the methods to register the progress and the completion of the download.
             yd.get_yt_ob().register_on_progress_callback(show_main_download_progress)
             yd.get_yt_ob().register_on_complete_callback(show_main_download_completed)
-                       
+            
             #Conditional to know if whether the video or the audio is going to be downloaded.
             if download_audio_only_confirmation is True:
                 yd.download_audio(open_file_confirmation)
             else: 
                 yd.download_video(open_file_confirmation)
+                
+    except Exception as e:
+        #In case an exception is thrown, here will be shown an error screen with the error message and the where the error ocurred.
+        
+        download_window.destroy()
+        trsho_link = "https://github.com/TakNof/YouTube-video-downloader-project/issues"
+        
+        
+               
+        error_message = f"An unknown error has occured while attepting to download the video/s:\n{e}\n{traceback.format_exc()}. \nPlease post the current error in the following link and I will try to solve it asap:"
+        
+        error_message_window = tk.Toplevel(root)
+
+        error_message_window.title("Unknown error has ocurred.")
+        error_message_window.geometry("1000x200")
+        
+        error_message_window.attributes("-topmost", True)
+
+        error_logo=tk.Label(error_message_window, image="::tk::icons::error")
+        error_logo.grid(row=0, column=0)
+        error_label=tk.Label(error_message_window,text=error_message, font=("Sans-serif", 10))
+        error_label.grid(row=0, column=1)
+
+
+        error_label_link = tk.Label(error_message_window, text=trsho_link, font=("Sans-serif", 16), cursor="hand2", foreground='blue')
+        error_label_link.grid(row=2, column=1)
+        error_label_link.bind("<Button-1>", lambda e:webbrowser.open(trsho_link))
             
-            #We stablish this variable at the end of the loop because we know for sure that
-            #the current state of the total donwload corresponds to the sum of all the specific ones
-            #at the end of each iteration.
-            current_total_download += specific_file_size_of_download
-            specific_file_size_of_download = 0
-            
-        #Here we reset this variables for future uses.
-        current_task = 0
-        current_total_download = 0       
-        
-    else:
-        #This variable collects the total file size of the video.
-        specific_file_size_of_download = yd.get_size_of_file(download_audio_only_confirmation)
-        
-        #We use the methods to register the progress and the completion of the download.
-        yd.get_yt_ob().register_on_progress_callback(show_main_download_progress)
-        yd.get_yt_ob().register_on_complete_callback(show_main_download_completed)
-        
-        #Conditional to know if whether the video or the audio is going to be downloaded.
-        if download_audio_only_confirmation is True:
-            yd.download_audio(open_file_confirmation)
-        else: 
-            yd.download_video(open_file_confirmation)
-    
 def show_main_download_progress(stream, chunk: bytes, bytes_remaining: int):
     """
     This method shows the progress of the download.
@@ -519,13 +547,13 @@ def check_version():
     #Here we create a lambda function to compare the digits of both versions.
     greater_than = lambda x,y: True if x > y else False
     
-    #Here we use a conditional with a any function, used to compare the digits of the versions.
+    #Here we use a conditional with an any function, used to compare the digits of the versions.
     #If true, it means the current version is lower than the version uploaded to the repository,
-    #thus we upen the update window.
+    #thus we open the update window.
     if any(greater_than(separated_digits_latest_version[i], separated_digits_app_version_text[i]) for i in range(3)):
         open_update_window(latest_version)
         
-def open_update_window(lastest_version: str):
+def open_update_window(latest_version: str):
     """
     This method opens the window of update functionality.
     """
@@ -537,7 +565,7 @@ def open_update_window(lastest_version: str):
     root.eval(f'tk::PlaceWindow {str(update_window)} center')
         
     #The message to the user to let they know of the new update.
-    update_message_str = f"There is a newer version available.\nDo you want to download it?\nYour version: {app_version_text}.\nLatest version: {lastest_version}"
+    update_message_str = f"There is a newer version available.\nDo you want to download it?\nYour version: {app_version_text}.\nLatest version: {latest_version}"
     
     #A label that displays the update message to the user.
     download_path_message = tk.Label(update_window, text=update_message_str, font=("consolas", 16), justify="center")
